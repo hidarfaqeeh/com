@@ -1,21 +1,17 @@
 import logging
 from aiogram import Bot, Dispatcher, executor, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime
 import asyncio
 
 import config
 import database
+import keyboards
+from utils import get_badge, format_username
 
-# تشغيل قاعدة البيانات عند بدء البوت
 database.init_db()
-
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=config.BOT_TOKEN, parse_mode="HTML")
 dp = Dispatcher(bot)
-
-def get_ref_link(user_id: int):
-    return f"https://t.me/{bot.username}?start={user_id}"
 
 def is_competition_active():
     end = datetime.strptime(config.COMPETITION_END, "%Y-%m-%d %H:%M:%S")
@@ -30,17 +26,6 @@ async def check_mandatory_channels(user_id: int):
         except Exception:
             return False
     return True
-
-def main_keyboard():
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        InlineKeyboardButton("اشترك بالمسابقة", callback_data="join"),
-        InlineKeyboardButton("نقاطي", callback_data="mypoints"),
-        InlineKeyboardButton("أفضل 10", callback_data="top10"),
-        InlineKeyboardButton("قناة المسابقة", url=f"https://t.me/{config.EVENTS_CHANNEL.replace('-100','')}")
-    )
-    kb.add(InlineKeyboardButton("التواصل مع الإدارة", url=f"https://t.me/{config.ADMIN_ID}"))
-    return kb
 
 @dp.message_handler(commands=['start'])
 async def start_command(message: types.Message):
@@ -58,12 +43,12 @@ async def start_command(message: types.Message):
         "شارك رابط الإحالة الخاص بك لجمع النقاط والفوز بجوائز قيّمة.\n\n"
         "اضغط على الأزرار بالأسفل للتحكم والمشاركة 👇"
     )
-    await message.answer(text, reply_markup=main_keyboard())
+    await message.answer(text, reply_markup=keyboards.main_keyboard(user_id))
 
 @dp.callback_query_handler(lambda c: c.data == "join")
 async def send_referral_link(call: types.CallbackQuery):
     user_id = call.from_user.id
-    link = f"https://t.me/{(await bot.get_me()).username}?start={user_id}"
+    link = f"https://t.me/{config.BOT_USERNAME}?start={user_id}"
     text = (
         f"📢 رابط الإحالة الخاص بك:\n{link}\n\n"
         "أرسل هذا الرابط لأصدقائك، كل شخص ينضم ويشترك بالقنوات يمنحك 100 نقطة!"
@@ -81,32 +66,76 @@ async def my_points(call: types.CallbackQuery):
     rank = database.get_user_rank(user_id)
     points = user[2]
     referrals = user[3]
+    badge = get_badge(rank)
     text = (
         f"✨ نقاطك: <b>{points}</b>\n"
         f"👥 إحالاتك: <b>{referrals}</b>\n"
-        f"🏅 ترتيبك: <b>{rank}</b>"
+        f"🏅 ترتيبك: <b>{rank}</b> {badge}"
     )
     await call.answer()
-    await call.message.answer(text)
+    await call.message.answer(text, reply_markup=keyboards.points_keyboard())
+
+@dp.callback_query_handler(lambda c: c.data == "refresh")
+async def refresh_points(call: types.CallbackQuery):
+    await my_points(call)
 
 @dp.callback_query_handler(lambda c: c.data == "top10")
 async def show_top10(call: types.CallbackQuery):
     top = database.get_top_users(config.TOP_LIMIT)
     msg = "🏆 <b>أفضل 10 متسابقين</b>:\n\n"
     for i, (uid, username, points) in enumerate(top, start=1):
-        mention = f"@{username}" if username else f"ID:{uid}"
-        msg += f"{i}- {mention} — <b>{points}</b> نقطة\n"
+        mention = format_username(uid, username)
+        badge = get_badge(i)
+        msg += f"{i}- {mention} — <b>{points}</b> نقطة {badge}\n"
     await call.answer()
     await call.message.answer(msg)
 
-@dp.message_handler(content_types=types.ContentType.NEW_CHAT_MEMBERS)
-async def handle_new_member(message: types.Message):
-    # ليس للاستخدام في البوت الخاص، فقط مجموعات (يمكن تجاهله)
-    pass
+@dp.callback_query_handler(lambda c: c.data == "topdaily")
+async def show_top_daily(call: types.CallbackQuery):
+    top = database.get_top_daily_users(config.TOP_LIMIT)
+    msg = "🔥 <b>متصدرو اليوم</b>:\n\n"
+    for i, (uid, username, pts) in enumerate(top, start=1):
+        mention = format_username(uid, username)
+        msg += f"{i}- {mention} — <b>{pts}</b> إحالة اليوم\n"
+    await call.answer()
+    await call.message.answer(msg)
+
+@dp.callback_query_handler(lambda c: c.data == "profile")
+async def show_profile(call: types.CallbackQuery):
+    user_id = call.from_user.id
+    user = database.get_user(user_id)
+    if not user:
+        await call.answer("سجل أولاً عبر /start", show_alert=True)
+        return
+    rank = database.get_user_rank(user_id)
+    badge = get_badge(rank)
+    text = (
+        f"👤 <b>ملفك الشخصي</b>\n"
+        f"الاسم: @{user[1]}\n"
+        f"النقاط: {user[2]}\n"
+        f"الإحالات: {user[3]}\n"
+        f"الترتيب: {rank} {badge}\n"
+        f"تاريخ الانضمام: {user[5]}"
+    )
+    await call.answer()
+    await call.message.answer(text)
+
+@dp.callback_query_handler(lambda c: c.data == "whoinvited")
+async def who_invited(call: types.CallbackQuery):
+    user_id = call.from_user.id
+    user = database.get_user(user_id)
+    if not user or not user[4]:
+        await call.answer("لا يوجد محيل مسجّل لك.", show_alert=True)
+        return
+    inviter = database.get_user(user[4])
+    if not inviter:
+        await call.answer("محيلك غير معروف.", show_alert=True)
+        return
+    await call.answer()
+    await call.message.answer(f"👤 محيلك هو: @{inviter[1]} (ID: {inviter[0]})")
 
 @dp.message_handler()
 async def handle_join(message: types.Message):
-    # يتابع التحقق من الإحالة عند دخول شخص جديد عبر رابط الإحالة
     args = message.get_args()
     user_id = message.from_user.id
     username = message.from_user.username or ""
@@ -116,7 +145,6 @@ async def handle_join(message: types.Message):
         database.add_user(user_id, username, invited_by)
         database.log_event("register", user_id, f"invited_by:{invited_by}")
 
-        # تحقق من الاشتراك الإجباري
         if invited_by and await check_mandatory_channels(user_id):
             database.add_points(invited_by, config.REFERRAL_POINTS)
             await bot.send_message(
@@ -134,19 +162,6 @@ async def handle_join(message: types.Message):
                 user_id,
                 "عليك الاشتراك في القنوات الإلزامية أولاً ليتم احتساب الإحالة."
             )
-            @dp.callback_query_handler(lambda c: c.data == "whoinvited")
-async def who_invited(call: types.CallbackQuery):
-    user_id = call.from_user.id
-    user = database.get_user(user_id)
-    if not user or not user[4]:
-        await call.answer("لا يوجد محيل مسجّل لك.", show_alert=True)
-        return
-    inviter = database.get_user(user[4])
-    if not inviter:
-        await call.answer("محيلك غير معروف.", show_alert=True)
-        return
-    await call.answer()
-    await call.message.answer(f"👤 محيلك هو: @{inviter[1]} (ID: {inviter[0]})")
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
