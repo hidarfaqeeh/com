@@ -26,7 +26,7 @@ def main_keyboard(user_id):
         [
             InlineKeyboardButton(
                 text="التواصل مع الإدارة",
-                url=f"https://t.me/{config.ADMIN_ID}"
+                url=f"https://t.me/{config.ADMIN_IDS}"
             )
         ]
     ]
