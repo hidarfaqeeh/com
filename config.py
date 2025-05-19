@@ -1,15 +1,12 @@
 import os
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "7533295302:AAEgqpo4SXf0K5IH4bFTWfNZc5LSxMcHE4E")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "6194809472"))
-EVENTS_CHANNEL = os.getenv("EVENTS_CHANNEL", "-1001861242334")  # معرف قناة الأحداث
+ADMIN_IDS = os.getenv("ADMIN_IDS", "6194809472").split(",")
+EVENTS_CHANNEL = os.getenv("LOG_CHANNEL_ID", "-1001861242334")  # مطابق للبيئة
 COMP_CHANNELS = [
-    "-1001470989107",  # معرف القناة الإلزامية الأولى
-    "-1001058111120",  # معرف القناة الإلزامية الثانية (يمكن حذفها أو زيادتها)
+    channel.strip() for channel in os.getenv("MANDATORY_CHANNELS", "@yepoets,@SSOUND_AAESA_AALAYATH").split(",")
 ]
-COMPETITION_END = os.getenv("COMPETITION_END", "2025-12-31 23:59:59")  # نهاية المسابقة (تاريخ/وقت)
-REFERRAL_POINTS = 100  # نقاط لكل إحالة ناجحة
-TOP_LIMIT = 10  # عدد أفضل المتسابقين في القائمة العلوية
-
-# اسم مستخدم البوت (حدثه بعد إنشاء البوت)
+COMPETITION_END = os.getenv("CONTEST_END_TIMESTAMP", "2025-06-01T23:59:59")
+REFERRAL_POINTS = int(os.getenv("REFERRAL_POINTS", "100"))
+TOP_LIMIT = int(os.getenv("TOP_LIMIT", "10"))
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Competyebot")
