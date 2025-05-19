@@ -1,8 +1,6 @@
 import logging
 from aiogram import Bot, Dispatcher, executor, types
 from datetime import datetime
-import asyncio
-
 import config
 import database
 import keyboards
@@ -37,6 +35,17 @@ async def start_command(message: types.Message):
     if not database.get_user(user_id):
         database.add_user(user_id, username, invited_by)
         database.log_event("register", user_id, f"invited_by:{invited_by}")
+
+    # تحقق من الاشتراك الإجباري
+    if not await check_mandatory_channels(user_id):
+        channels_links = "\n".join(
+            [f"- <a href='https://t.me/{ch.replace('-100','')}'>{ch}</a>" for ch in config.COMP_CHANNELS]
+        )
+        await message.answer(
+            f"🚨 للاشتراك بالمسابقة، يجب عليك الاشتراك في القنوات التالية أولاً:\n{channels_links}\n\nثم أعد إرسال /start.",
+            disable_web_page_preview=True
+        )
+        return
 
     text = (
         "👋 أهلاً بك في <b>مسابقة الإحالة</b>!\n"
@@ -158,9 +167,13 @@ async def handle_join(message: types.Message):
             )
             database.log_event("referral", invited_by, f"invited:{user_id}")
         elif invited_by:
+            channels_links = "\n".join(
+                [f"- <a href='https://t.me/{ch.replace('-100','')}'>{ch}</a>" for ch in config.COMP_CHANNELS]
+            )
             await bot.send_message(
                 user_id,
-                "عليك الاشتراك في القنوات الإلزامية أولاً ليتم احتساب الإحالة."
+                f"عليك الاشتراك في القنوات الإلزامية أولاً ليتم احتساب الإحالة.\n{channels_links}\n\nثم أعد إرسال /start.",
+                disable_web_page_preview=True
             )
 
 if __name__ == "__main__":
