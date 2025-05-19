@@ -134,6 +134,19 @@ async def handle_join(message: types.Message):
                 user_id,
                 "عليك الاشتراك في القنوات الإلزامية أولاً ليتم احتساب الإحالة."
             )
+            @dp.callback_query_handler(lambda c: c.data == "whoinvited")
+async def who_invited(call: types.CallbackQuery):
+    user_id = call.from_user.id
+    user = database.get_user(user_id)
+    if not user or not user[4]:
+        await call.answer("لا يوجد محيل مسجّل لك.", show_alert=True)
+        return
+    inviter = database.get_user(user[4])
+    if not inviter:
+        await call.answer("محيلك غير معروف.", show_alert=True)
+        return
+    await call.answer()
+    await call.message.answer(f"👤 محيلك هو: @{inviter[1]} (ID: {inviter[0]})")
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
