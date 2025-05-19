@@ -81,3 +81,19 @@ def log_event(event_type: str, user_id: int, info: str = ""):
     ''', (event_type, user_id, info))
     conn.commit()
     conn.close()
+
+def get_top_daily_users(limit: int = 10) -> List[Tuple]:
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('''
+        SELECT users.user_id, users.username, COUNT(events.id) as referrals_today
+        FROM events
+        JOIN users ON events.user_id = users.user_id
+        WHERE events.event_type = "referral" AND DATE(events.event_time) = DATE('now')
+        GROUP BY users.user_id, users.username
+        ORDER BY referrals_today DESC
+        LIMIT ?
+    ''', (limit,))
+    users = c.fetchall()
+    conn.close()
+    return users
