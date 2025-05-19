@@ -1,7 +1,8 @@
 import logging
 from aiogram import Bot, Dispatcher, types
-from datetime import datetime
+from aiogram.filters import Command
 import asyncio
+from datetime import datetime
 import config
 import database
 import keyboards
@@ -36,7 +37,7 @@ async def get_channel_link(channel_id):
     except Exception:
         return "(تعذر جلب الرابط)"
 
-@dp.message(commands=['start'])
+@dp.message(Command("start"))
 async def start_command(message: types.Message):
     args = message.get_args()
     user_id = message.from_user.id
@@ -189,7 +190,6 @@ async def handle_join(message: types.Message):
             )
 
 async def main():
-    dp.include_router(dp)  # للتأكد أن كل الهاندلرز مسجلة (يمكن حذف السطر إذا لم يكن هناك Routers خارجية)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
