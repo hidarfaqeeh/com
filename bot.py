@@ -1,6 +1,7 @@
 import logging
-from aiogram import Bot, Dispatcher, executor, types
+from aiogram import Bot, Dispatcher, types
 from datetime import datetime
+import asyncio
 import config
 import database
 import keyboards
@@ -9,7 +10,7 @@ from utils import get_badge, format_username
 database.init_db()
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=config.BOT_TOKEN, parse_mode="HTML")
-dp = Dispatcher(bot)
+dp = Dispatcher()
 
 def is_competition_active():
     end = datetime.strptime(config.COMPETITION_END, "%Y-%m-%d %H:%M:%S")
@@ -35,7 +36,7 @@ async def get_channel_link(channel_id):
     except Exception:
         return "(تعذر جلب الرابط)"
 
-@dp.message_handler(commands=['start'])
+@dp.message(commands=['start'])
 async def start_command(message: types.Message):
     args = message.get_args()
     user_id = message.from_user.id
@@ -46,7 +47,6 @@ async def start_command(message: types.Message):
         database.add_user(user_id, username, invited_by)
         database.log_event("register", user_id, f"invited_by:{invited_by}")
 
-    # تحقق من الاشتراك الإجباري
     if not await check_mandatory_channels(user_id):
         channels_links = ""
         for ch in config.COMP_CHANNELS:
@@ -65,7 +65,7 @@ async def start_command(message: types.Message):
     )
     await message.answer(text, reply_markup=keyboards.main_keyboard(user_id))
 
-@dp.callback_query_handler(lambda c: c.data == "join")
+@dp.callback_query(lambda c: c.data == "join")
 async def send_referral_link(call: types.CallbackQuery):
     user_id = call.from_user.id
     link = f"https://t.me/{config.BOT_USERNAME}?start={user_id}"
@@ -76,7 +76,7 @@ async def send_referral_link(call: types.CallbackQuery):
     await call.answer()
     await call.message.answer(text)
 
-@dp.callback_query_handler(lambda c: c.data == "mypoints")
+@dp.callback_query(lambda c: c.data == "mypoints")
 async def my_points(call: types.CallbackQuery):
     user_id = call.from_user.id
     user = database.get_user(user_id)
@@ -95,11 +95,11 @@ async def my_points(call: types.CallbackQuery):
     await call.answer()
     await call.message.answer(text, reply_markup=keyboards.points_keyboard())
 
-@dp.callback_query_handler(lambda c: c.data == "refresh")
+@dp.callback_query(lambda c: c.data == "refresh")
 async def refresh_points(call: types.CallbackQuery):
     await my_points(call)
 
-@dp.callback_query_handler(lambda c: c.data == "top10")
+@dp.callback_query(lambda c: c.data == "top10")
 async def show_top10(call: types.CallbackQuery):
     top = database.get_top_users(config.TOP_LIMIT)
     msg = "🏆 <b>أفضل 10 متسابقين</b>:\n\n"
@@ -110,7 +110,7 @@ async def show_top10(call: types.CallbackQuery):
     await call.answer()
     await call.message.answer(msg)
 
-@dp.callback_query_handler(lambda c: c.data == "topdaily")
+@dp.callback_query(lambda c: c.data == "topdaily")
 async def show_top_daily(call: types.CallbackQuery):
     top = database.get_top_daily_users(config.TOP_LIMIT)
     msg = "🔥 <b>متصدرو اليوم</b>:\n\n"
@@ -120,7 +120,7 @@ async def show_top_daily(call: types.CallbackQuery):
     await call.answer()
     await call.message.answer(msg)
 
-@dp.callback_query_handler(lambda c: c.data == "profile")
+@dp.callback_query(lambda c: c.data == "profile")
 async def show_profile(call: types.CallbackQuery):
     user_id = call.from_user.id
     user = database.get_user(user_id)
@@ -140,7 +140,7 @@ async def show_profile(call: types.CallbackQuery):
     await call.answer()
     await call.message.answer(text)
 
-@dp.callback_query_handler(lambda c: c.data == "whoinvited")
+@dp.callback_query(lambda c: c.data == "whoinvited")
 async def who_invited(call: types.CallbackQuery):
     user_id = call.from_user.id
     user = database.get_user(user_id)
@@ -154,7 +154,7 @@ async def who_invited(call: types.CallbackQuery):
     await call.answer()
     await call.message.answer(f"👤 محيلك هو: @{inviter[1]} (ID: {inviter[0]})")
 
-@dp.message_handler()
+@dp.message()
 async def handle_join(message: types.Message):
     args = message.get_args()
     user_id = message.from_user.id
@@ -188,5 +188,9 @@ async def handle_join(message: types.Message):
                 disable_web_page_preview=True
             )
 
+async def main():
+    dp.include_router(dp)  # للتأكد أن كل الهاندلرز مسجلة (يمكن حذف السطر إذا لم يكن هناك Routers خارجية)
+    await dp.start_polling(bot)
+
 if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+    asyncio.run(main())
