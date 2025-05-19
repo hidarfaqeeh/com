@@ -63,8 +63,6 @@ async def get_cheat_reports():
     rows = await pool.fetch("SELECT * FROM cheat_reports")
     return rows
 
-# ---------- دوال الإحالة وغيرها ----------
-
 # توليد رابط الإحالة للمستخدم
 def generate_referral_link(bot_username, user_id):
     return f"https://t.me/{bot_username}?start={user_id}"
@@ -91,3 +89,24 @@ async def log_event(tg_id, event_type, data=None):
         "INSERT INTO events (tg_id, event_type, data, created_at) VALUES ($1, $2, $3, $4)",
         tg_id, event_type, data, datetime.utcnow()
     )
+
+# جلب نقاط المستخدم
+async def get_points(tg_id):
+    pool = await get_pool()
+    row = await pool.fetchrow("SELECT points FROM users WHERE tg_id = $1", tg_id)
+    return row["points"] if row and "points" in row else 0
+
+# جلب ترتيب المستخدم (الرتبة بين الجميع حسب النقاط)
+async def get_rank(tg_id):
+    pool = await get_pool()
+    rows = await pool.fetch("SELECT tg_id, points FROM users ORDER BY points DESC")
+    for idx, row in enumerate(rows, 1):
+        if row["tg_id"] == tg_id:
+            return idx
+    return None
+
+# جلب شارة المستخدم (badge)، بافتراض وجود عمود badge في users
+async def get_badge(tg_id):
+    pool = await get_pool()
+    row = await pool.fetchrow("SELECT badge FROM users WHERE tg_id = $1", tg_id)
+    return row["badge"] if row and "badge" in row else None
