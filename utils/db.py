@@ -4,7 +4,6 @@ import csv
 from datetime import datetime
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-
 _pool = None
 
 async def get_pool():
@@ -64,12 +63,13 @@ async def get_cheat_reports():
     rows = await pool.fetch("SELECT * FROM cheat_reports")
     return rows
 
-# ------ الدوال الخاصة بالإحالة ------
+# ---------- دوال الإحالة وغيرها ----------
+
 # توليد رابط الإحالة للمستخدم
 def generate_referral_link(bot_username, user_id):
     return f"https://t.me/{bot_username}?start={user_id}"
 
-# التحقق من الاشتراك في قناة (مثال: تحقق من وجود المستخدم في جدول subscriptions)
+# التحقق من الاشتراك في قناة
 async def check_subscription(tg_id, channel_username):
     pool = await get_pool()
     row = await pool.fetchrow(
@@ -84,7 +84,7 @@ async def add_points(tg_id, points):
         "UPDATE users SET points = COALESCE(points, 0) + $1 WHERE tg_id = $2", points, tg_id
     )
 
-# تسجيل حدث (log) في جدول الأحداث
+# تسجيل حدث في جدول الأحداث
 async def log_event(tg_id, event_type, data=None):
     pool = await get_pool()
     await pool.execute(
