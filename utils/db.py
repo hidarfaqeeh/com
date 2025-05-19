@@ -17,7 +17,11 @@ async def get_pool():
 async def add_user(user):
     pool = await get_pool()
     await pool.execute(
-        "INSERT INTO users (tg_id, username, full_name, joined_at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+        """
+        INSERT INTO users (tg_id, username, full_name, joined_at)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (tg_id) DO NOTHING
+        """,
         user.id,
         user.username,
         f"{user.first_name or ''} {user.last_name or ''}".strip(),
@@ -44,7 +48,9 @@ async def ban_user(tg_id):
 # تصدير المستخدمين إلى ملف CSV
 async def export_csv(filename="users_export.csv"):
     users = await get_all_users()
-    fieldnames = users[0].keys() if users else ["id", "tg_id", "username", "full_name", "joined_at"]
+    if not users:
+        return None
+    fieldnames = users[0].keys()
     with open(filename, "w", newline='', encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
@@ -58,4 +64,4 @@ async def get_cheat_reports():
     rows = await pool.fetch("SELECT * FROM cheat_reports")
     return rows
 
-# أمثلة دوال أخرى يمكنك إضافتها حسب الحاجة...
+# إذا كان هناك دوال أخرى مطلوبة، أضفها هنا.
