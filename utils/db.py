@@ -13,18 +13,19 @@ async def get_pool():
     return _pool
 
 # إضافة مستخدم جديد
-async def add_user(user):
+async def add_user(user, inviter_id=None):
     pool = await get_pool()
     await pool.execute(
         """
-        INSERT INTO users (tg_id, username, full_name, joined_at)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO users (tg_id, username, full_name, joined_at, inviter_id)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT (tg_id) DO NOTHING
         """,
         user.id,
         user.username,
         f"{user.first_name or ''} {user.last_name or ''}".strip(),
-        datetime.utcnow()
+        datetime.utcnow(),
+        inviter_id
     )
 
 # جلب مستخدم واحد
@@ -39,7 +40,7 @@ async def get_all_users():
     rows = await pool.fetch("SELECT * FROM users")
     return rows
 
-# حظر مستخدم (تحديث is_banned)
+# حظر مستخدم
 async def ban_user(tg_id):
     pool = await get_pool()
     await pool.execute("UPDATE users SET is_banned = TRUE WHERE tg_id = $1", tg_id)
@@ -57,7 +58,7 @@ async def export_csv(filename="users_export.csv"):
             writer.writerow(dict(row))
     return filename
 
-# جلب تقارير الغش (من جدول cheat_reports)
+# جلب تقارير الغش
 async def get_cheat_reports():
     pool = await get_pool()
     rows = await pool.fetch("SELECT * FROM cheat_reports")
@@ -67,7 +68,7 @@ async def get_cheat_reports():
 def generate_referral_link(bot_username, user_id):
     return f"https://t.me/{bot_username}?start={user_id}"
 
-# التحقق من الاشتراك في قناة
+# التحقق من الاشتراك في قناة (يحتاج اسم القناة معرّف channel_username)
 async def check_subscription(tg_id, channel_username):
     pool = await get_pool()
     row = await pool.fetchrow(
@@ -89,15 +90,19 @@ async def log_event(tg_id, event_type, data=None):
         "INSERT INTO events (tg_id, event_type, data, created_at) VALUES ($1, $2, $3, $4)",
         tg_id, event_type, data, datetime.utcnow()
     )
-    # ... باقي الكود والدوال ...
 
-# جلب أفضل 10 مستخدمين حسب النقاط
-async def get_top10_users():
+# جلب أفضل 10 مستخدمين حسب النقاط (Leaderboard)
+async def get_leaderboard(limit=10):
     pool = await get_pool()
     rows = await pool.fetch(
-        "SELECT tg_id, username, full_name, points FROM users ORDER BY points DESC NULLS LAST LIMIT 10"
+        "SELECT tg_id, username, full_name, points FROM users ORDER BY points DESC NULLS LAST LIMIT $1",
+        limit
     )
     return rows
+
+# جلب أفضل 10 مستخدمين (بديل قديم)
+async def get_top10_users():
+    return await get_leaderboard(10)
 
 # جلب نقاط المستخدم
 async def get_points(tg_id):
@@ -114,8 +119,20 @@ async def get_rank(tg_id):
             return idx
     return None
 
-# جلب شارة المستخدم (badge)، بافتراض وجود عمود badge في users
+# جلب شارة المستخدم (badge)
 async def get_badge(tg_id):
     pool = await get_pool()
     row = await pool.fetchrow("SELECT badge FROM users WHERE tg_id = $1", tg_id)
     return row["badge"] if row and "badge" in row else None
+
+# جلب مستوى المستخدم (level) - مثال افتراضي حسب النقاط
+async def get_level(tg_id):
+    points = await get_points(tg_id)
+    if points >= 1000:
+        return "خبير"
+    elif points >= 500:
+        return "متقدم"
+    elif points >= 100:
+        return "متوسط"
+    else:
+        return "مبتدئ"
