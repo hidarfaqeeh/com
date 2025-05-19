@@ -25,6 +25,16 @@ async def check_mandatory_channels(user_id: int):
             return False
     return True
 
+async def get_channel_link(channel_id):
+    try:
+        chat = await bot.get_chat(channel_id)
+        if chat.username:
+            return f"https://t.me/{chat.username}"
+        else:
+            return f"(قناة خاصة، تواصل مع الإدارة)"
+    except Exception:
+        return "(تعذر جلب الرابط)"
+
 @dp.message_handler(commands=['start'])
 async def start_command(message: types.Message):
     args = message.get_args()
@@ -38,9 +48,10 @@ async def start_command(message: types.Message):
 
     # تحقق من الاشتراك الإجباري
     if not await check_mandatory_channels(user_id):
-        channels_links = "\n".join(
-            [f"- <a href='https://t.me/{ch.replace('-100','')}'>{ch}</a>" for ch in config.COMP_CHANNELS]
-        )
+        channels_links = ""
+        for ch in config.COMP_CHANNELS:
+            link = await get_channel_link(ch)
+            channels_links += f"- {link}\n"
         await message.answer(
             f"🚨 للاشتراك بالمسابقة، يجب عليك الاشتراك في القنوات التالية أولاً:\n{channels_links}\n\nثم أعد إرسال /start.",
             disable_web_page_preview=True
@@ -167,9 +178,10 @@ async def handle_join(message: types.Message):
             )
             database.log_event("referral", invited_by, f"invited:{user_id}")
         elif invited_by:
-            channels_links = "\n".join(
-                [f"- <a href='https://t.me/{ch.replace('-100','')}'>{ch}</a>" for ch in config.COMP_CHANNELS]
-            )
+            channels_links = ""
+            for ch in config.COMP_CHANNELS:
+                link = await get_channel_link(ch)
+                channels_links += f"- {link}\n"
             await bot.send_message(
                 user_id,
                 f"عليك الاشتراك في القنوات الإلزامية أولاً ليتم احتساب الإحالة.\n{channels_links}\n\nثم أعد إرسال /start.",
