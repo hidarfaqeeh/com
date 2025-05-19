@@ -39,7 +39,21 @@ async def get_all_users():
     pool = await get_pool()
     rows = await pool.fetch("SELECT * FROM users")
     return rows
-
+async def join_challenge(tg_id, challenge_id):
+    """
+    ينضم المستخدم لتحدي معين.
+    يمكنك تعديل منطق الدالة حسب بنية قاعدة البيانات لديك.
+    """
+    pool = await get_pool()
+    await pool.execute(
+        """
+        INSERT INTO user_challenges (tg_id, challenge_id, joined_at)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (tg_id, challenge_id) DO NOTHING
+        """,
+        tg_id, challenge_id, datetime.utcnow()
+    )
+    return True
 # حظر مستخدم
 async def ban_user(tg_id):
     pool = await get_pool()
