@@ -99,6 +99,37 @@ async def get_leaderboard(limit=10):
         limit
     )
     return rows
+    # مثال لدوال ناقصة يمكنك تعديلها حسب منطق مشروعك
+
+async def get_user_progress_bar(tg_id):
+    points = await get_points(tg_id)
+    max_points = 1000
+    progress = min(points / max_points, 1.0)
+    bar_length = 20
+    filled_length = int(bar_length * progress)
+    bar = "█" * filled_length + "-" * (bar_length - filled_length)
+    return f"[{bar}] {int(progress*100)}%"
+
+def get_channel_link(channel_id):
+    # تحتاج لمنطقك الخاص (ربما api تليجرام أو قائمة ثابتة)
+    return f"https://t.me/c/{channel_id}"
+
+async def get_mandatory_channels():
+    # مثال: تعيد قائمة من أسماء القنوات الإلزامية
+    # يمكنك جلبها من config أو قاعدة البيانات
+    return ["channel_1", "channel_2"]
+
+async def get_contest_countdown():
+    # مثال: تعيد الوقت المتبقي للمسابقة
+    from datetime import datetime, timedelta
+    contest_end = datetime(2025, 5, 31, 23, 59)
+    now = datetime.utcnow()
+    delta = contest_end - now
+    return str(delta)
+
+async def get_active_challenges():
+    # مثال: تعيد قائمة بالتحديات النشطة
+    return ["challenge_1", "challenge_2", "challenge_3"]
 
 # جلب أفضل 10 مستخدمين (بديل قديم)
 async def get_top10_users():
