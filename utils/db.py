@@ -89,6 +89,15 @@ async def log_event(tg_id, event_type, data=None):
         "INSERT INTO events (tg_id, event_type, data, created_at) VALUES ($1, $2, $3, $4)",
         tg_id, event_type, data, datetime.utcnow()
     )
+    # ... باقي الكود والدوال ...
+
+# جلب أفضل 10 مستخدمين حسب النقاط
+async def get_top10_users():
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT tg_id, username, full_name, points FROM users ORDER BY points DESC NULLS LAST LIMIT 10"
+    )
+    return rows
 
 # جلب نقاط المستخدم
 async def get_points(tg_id):
