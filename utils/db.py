@@ -64,4 +64,30 @@ async def get_cheat_reports():
     rows = await pool.fetch("SELECT * FROM cheat_reports")
     return rows
 
-# إذا كان هناك دوال أخرى مطلوبة، أضفها هنا.
+# ------ الدوال الخاصة بالإحالة ------
+# توليد رابط الإحالة للمستخدم
+def generate_referral_link(bot_username, user_id):
+    return f"https://t.me/{bot_username}?start={user_id}"
+
+# التحقق من الاشتراك في قناة (مثال: تحقق من وجود المستخدم في جدول subscriptions)
+async def check_subscription(tg_id, channel_username):
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        "SELECT * FROM subscriptions WHERE tg_id = $1 AND channel = $2", tg_id, channel_username
+    )
+    return bool(row)
+
+# إضافة نقاط لمستخدم
+async def add_points(tg_id, points):
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE users SET points = COALESCE(points, 0) + $1 WHERE tg_id = $2", points, tg_id
+    )
+
+# تسجيل حدث (log) في جدول الأحداث
+async def log_event(tg_id, event_type, data=None):
+    pool = await get_pool()
+    await pool.execute(
+        "INSERT INTO events (tg_id, event_type, data, created_at) VALUES ($1, $2, $3, $4)",
+        tg_id, event_type, data, datetime.utcnow()
+    )
